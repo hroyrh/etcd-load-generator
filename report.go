@@ -1,7 +1,7 @@
 
 // the file is borrowed from github.com/rakyll/boom/boomer/print.go
 
-package etcdload
+package main
 
 import (
 	"fmt"
