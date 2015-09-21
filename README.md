@@ -2,7 +2,25 @@ This is a etcd load test module written in go-language. It basically creates
 artificial load on a running etcd instance. The test runs for a random set of
 keys and values, which can be specified in the configuration file. You can 
 configure many other parameters in the config file. See the sample config file 
---"etcd_load.cfg" for more information
+--"etcd_load.cfg" for more information. 
+
+Here is what a sample config file looks like :
+##################################################################
+	[section-args]
+	etcdhost="127.0.0.1"
+	etcdport="4001"
+	operation=create
+	keycount="100"
+	operation-count="200"
+	log-file=log
+	threads=5 
+	pct="5,74,10,10,1"
+	value-range="0,256,512,1024,8192,204800"
+	remote-flag=False
+	ssh-port=22
+	remote-host-user=root
+##################################################################
+
 
 Features include :
  - Memory information
@@ -56,6 +74,11 @@ Now, to run etcd_load test, use the following steps
 	config file that must be input using the -c flag
 	To know more about the flags :: do -- go run etcd_load.go -h
 
+Credit ::
+ - The report.go file in the package is used from the "boom" package, here is the link
+ 	- https://github.com/rakyll/boom/blob/master/boomer/print.go
+
+ 
 You can find more runtime details in the log file. 
 The commandline the report looks like :
 **********************************************************************

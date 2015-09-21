@@ -6,19 +6,22 @@ import (
     "strconv"
     "strings"
     "os"
-    "fmt"
-    "github.com/coreos/go-etcd/etcd"
-    "crypto/rand"
-    "time"
-    "sync"
-    "os/exec"
-    "math/big"
-    "log"
-    "code.google.com/p/gcfg"
-    "code.google.com/p/go.crypto/ssh"
-    "io/ioutil"
+    "fmt"  
     "bytes"
     "flag"
+    "time"
+    "sync"
+    "log"   
+     
+    "crypto/rand"
+    "os/exec"
+    "math/big"
+    "io/ioutil"
+
+    "code.google.com/p/gcfg"
+    "code.google.com/p/go.crypto/ssh"
+    "github.com/coreos/go-etcd/etcd"
+ 
 )
 
 /*
@@ -119,7 +122,6 @@ func main() {
 
 
     // Reading from config file
-    ////////////////////////////////////////////////////////
     etcdhost := cfg.Section_Args.Etcdhost
     etcdport := cfg.Section_Args.Etcdport
     operation = cfg.Section_Args.Operation
