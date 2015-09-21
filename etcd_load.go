@@ -274,6 +274,7 @@ func main() {
             values[0] = value_range[i]
             values[1] = value_range[i+1]
             go create_keys(base,pct_count[i],values)
+            base = base + pct_count[i]
         }
         wg.Wait()
         printReport(n, results, time.Now().Sub(start))
