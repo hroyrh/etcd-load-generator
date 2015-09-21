@@ -26,11 +26,17 @@ import (
 
 /*
 Declarations :::: 
-    actions   : for passing otherfunctions as arguments to handler function
-    operation : which operation to perform
-    keycount  : number of keys to be added, retrieved, deleted or updated
-    threads   : number of total threads
-    pct       : each entry represents percentage of values lying in (value_range[i],value_range[i+1]) 
+    actions     : for passing other functions as arguments to handler function.
+    operation   : which operation to perform.
+    keycount    : number of keys to be added, retrieved, deleted or updated.
+    threads     : number of total threads.
+    pct         : each entry represents percentage of values lying in .
+                  (value_range[i],value_range[i+1]) . 
+                  Example -- pct={10,10,50,30}, for value_range={0,16,32,64,128} .
+    pct_count   : distribution of keys according to pct .
+                  Example -- {100,100,500,300} for keycount=1000 .
+    value_range : value range for keys .
+    results     : result struct from report.go .
 */
 
 type actions func(int,int)
@@ -52,7 +58,7 @@ var (
     results chan *result
 )
 
-//flag variables
+//Flag variables are descirbed here .
 var (
     fhost, fport, foperation, flog_file, fcfg_file *string
     fkeycount, foperation_count *int
@@ -60,7 +66,7 @@ var (
 )
 
  func init() {
-    // All the defaults are from the etcd_load.cfg default
+    //All the defaults here refer to etcd_load.cfg values, not to flag defaults.
     fhelp = flag.Bool("help", false, "shows how to use flags")    
     fhost = flag.String("h", "null", "etcd instance address."+
                         "Default=127.0.0.1 from config file")
@@ -81,10 +87,10 @@ var (
  }
 
 func main() {
-    //parsing commandline flags
+    //This parses the commandline flags, so that their values are set.
     flag.Parse()
 
-    // Configuration Structure
+    //This struct is used to capture the configuration from the config file.
     cfg := struct {
         Section_Args struct {
             Etcdhost string
@@ -102,7 +108,7 @@ func main() {
         }
     }{}
     
-    // Config File
+    //The input of config file is handled here.
     if *fhelp {
         flag.Usage()
         return
@@ -115,21 +121,26 @@ func main() {
         fmt.Println("Please input the cfg file")
         return
     }
-    err := gcfg.ReadFileInto(&cfg, conf_file)
+    err = gcfg.ReadFileInto(&cfg, conf_file)
     if err != nil {
-        log.Fatalf("Failed to parse gcfg data: %s", err)
+        log.Fatalf("Failed to parse gcfg data: ", err)
     }
 
 
-    // Reading from config file
+    // Reading parameters from the config file and doing processing if needed.
+    /////////////////////////////////////////////////////////////////////////
     etcdhost := cfg.Section_Args.Etcdhost
     etcdport := cfg.Section_Args.Etcdport
     operation = cfg.Section_Args.Operation
     keycount = int(toInt(cfg.Section_Args.Keycount,10,64))
     operation_count = int(toInt(cfg.Section_Args.Operation_Count,10,64))
     log_file := cfg.Section_Args.Log_File
+    remote_flag := cfg.Section_Args.Remote_Flag
+    remote_host := cfg.Section_Args.Etcdhost
+    ssh_port := cfg.Section_Args.Ssh_Port
+    remote_host_user := cfg.Section_Args.Remote_Host_User
 
-    // The Distribution of keys
+    //Here, the formatting of pct_count is handled.
     percents := cfg.Section_Args.Pct
     temp := strings.Split(percents,",")
     pct = make([]int,len(temp))
@@ -138,22 +149,18 @@ func main() {
         pct[i] = int(toInt(temp[i],10,64))
         pct_count[i] = pct[i] * keycount / 100
     }
-    // Percentage distribution of key-values
+
+    //Proper formatting of the value range, read from config file
     value_r := cfg.Section_Args.Value_Range
     temp = strings.Split(value_r,",")
     value_range = make([]int,len(temp))
     for i:=0;i<len(temp);i++ {
         value_range[i] = int(toInt(temp[i],10,64))
     }
-    //Maximum threads
+    //Maximum threads that can be used for the test.
     threads = cfg.Section_Args.Threads
 
-    remote_flag := cfg.Section_Args.Remote_Flag
-    remote_host := cfg.Section_Args.Etcdhost
-    ssh_port := cfg.Section_Args.Ssh_Port
-    remote_host_user := cfg.Section_Args.Remote_Host_User
-
-
+    
     // Flag Handling
     if *fhost != "null"{
         etcdhost=*fhost
@@ -177,6 +184,8 @@ func main() {
     remote_flag = *fremote_flag
     mem_flag = *fmem_flag
 
+    // This part is executed only when memory information is requested, when 
+    // etcd is running on a remote machine.
     if remote_flag && mem_flag {
         t_key, _ := getKeyFile()
         if  err !=nil {
@@ -198,8 +207,10 @@ func main() {
         ssh_client = t_client
     }
 
-
-    // Getting Memory Info for etcd instance
+    // Getting Memory Info for etcd instance. this part is only executed if 
+    // memory information is requested, that is, memory_flag is set.
+    // Note that if memory_flag is set, and the machine is remote, then the 
+    // remote_flag must be set .
     if remote_flag && mem_flag {
         var bits bytes.Buffer
         mem_cmd := "pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'"
@@ -228,12 +239,12 @@ func main() {
     if mem_flag {
         fmt.Println("Memory usage by etcd before requests: " + pidetcd_s +" KB")
     }
-    // Creating a new client for handling requests
+
+    // Creating a new client for handling requests .
     var machines = []string{"http://"+etcdhost+":"+etcdport}
     client =  etcd.NewClient(machines)
 
-
-    //Log File
+    // Log file is opened or created for storing log entries.
     f, err = os.OpenFile(log_file, os.O_RDWR | os.O_CREATE , 0666)
     if err != nil {
         log.Fatalf("error opening file: %v", err)
@@ -244,14 +255,15 @@ func main() {
     log.Println("Keycount, operation_count =",keycount,operation_count)
 
 
-    // Results : see report.go
+    // n result channels are made to pass time information during execution.
+    // This part is useful for generating the commandline report.
     n := operation_count
     results = make(chan *result, n)
     
-
-    // Keep track of the goroutines
+    // This is necessary for the goroutines.
     wg.Add(len(pct))
     
+    // This part is where requests are handled.
     switch{
     case operation == "create":
         log.Println("Operation : create")
@@ -284,6 +296,8 @@ func main() {
         wg.Wait()
         printReport(n, results, time.Now().Sub(start))
     }
+
+    // This part is used when memory information is requested.
     if remote_flag && mem_flag {
         var bits bytes.Buffer
         mem_cmd := "pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'"
@@ -314,6 +328,7 @@ func main() {
     defer f.Close()
 }
 
+// As the name suggests, returns a single int64 value.
 func toInt(s string, base int, bitSize int) int64 {
     i, err := strconv.ParseInt(s, base, bitSize)
     if err != nil {
@@ -322,11 +337,13 @@ func toInt(s string, base int, bitSize int) int64 {
     return i
 }
 
+// Converts integer to string and return the string.
 func toString(i int) string {
     s := strconv.Itoa(i)
     return s
 }
 
+// This function handles the get requests.
 func get_values(base int, per_thread int){
     var key int
     limit := base + (keycount / threads)
@@ -338,7 +355,7 @@ func get_values(base int, per_thread int){
         elapsed := time.Since(start)
         log.Println("key %s took %s", key, elapsed)
 
-        //for reporting; see report.go
+        // This part is helpful in generating the commandline report
         var errStr string
         if err != nil {
             errStr = err.Error()
@@ -351,6 +368,7 @@ func get_values(base int, per_thread int){
     defer wg.Done()
 }
 
+// This function handles the create requests.
 func create_keys(base int, count int, r [2]int){
     var key int
     for i:=0;i<count;i++{
@@ -363,7 +381,7 @@ func create_keys(base int, count int, r [2]int){
         elapsed := time.Since(start)
         log.Println("key %s took %s", key, elapsed)
         
-        //for reporting; see report.go
+        // This part is helpful in generating the commandline report
         var errStr string
         if err != nil {
             errStr = err.Error()
@@ -377,6 +395,7 @@ func create_keys(base int, count int, r [2]int){
     defer wg.Done()
 }
 
+// This function handles the update requests.
 func update_values(base int, per_thread int){
     var key int
     val := "UpdatedValue"
@@ -389,7 +408,7 @@ func update_values(base int, per_thread int){
         elapsed := time.Since(start)
         log.Println("key %s took %s", key, elapsed)
 
-        //for reporting; see report.go
+        // This part is helpful in generating the commandline report
         var errStr string
         if err != nil {
             errStr = err.Error()
@@ -402,6 +421,7 @@ func update_values(base int, per_thread int){
     defer wg.Done()
 }
 
+// This function handles the delete requests.
 func delete_values(base int, per_thread int){
     var key int
     limit := base + (keycount / threads)
@@ -413,7 +433,7 @@ func delete_values(base int, per_thread int){
         elapsed := time.Since(start)
         log.Println("key %s took %s", key, elapsed)
 
-        //for reporting; see report.go
+        // This part is helpful in generating the commandline report
         var errStr string
         if err != nil {
             errStr = err.Error()
@@ -426,7 +446,7 @@ func delete_values(base int, per_thread int){
     defer wg.Done()
 }
 
-
+// This function handles calls to functions for get/update/delete except create.
 func handler(fn actions){
     per_thread := operation_count/threads
     base := 0
@@ -436,6 +456,7 @@ func handler(fn actions){
     }
 }
 
+// This function us ised to create a random string -- used as value for a key.
 func RandStringBytesRmndr(n int) string {
     const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     b := make([]byte, n)
@@ -446,6 +467,7 @@ func RandStringBytesRmndr(n int) string {
     return string(b)
 }
 
+// This function returns memory information when etcd is running locally.
 func getMemUse(pid string) string{
     mem, _ := exec.Command("pmap","-x",pid).Output()
     mempmap := string(mem)
@@ -456,11 +478,14 @@ func getMemUse(pid string) string{
     return memory
 }
 
+// This function prints the time elapesed for a particular request.
 func timeTrack(start time.Time, name string) {
     elapsed := time.Since(start)
     log.Println("key %s took %s", name, elapsed)
 }
 
+// This function is used to get the pulic ssh key to make password-less 
+// connection to a remote machine.
 func getKeyFile() (key ssh.Signer, err error){
     //fmt.Println("getkey file funciton")
     file := os.Getenv("HOME") + "/.ssh/id_rsa"
