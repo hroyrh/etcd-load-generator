@@ -151,7 +151,6 @@ configure many other parameters in the config file. See the sample config file
 	  95% in 0.0481 secs.
 	  99% in 0.1493 secs.
 
-	******************************************************************
 
 ##Credit ::
  - The report.go file in the package is used from the "boom" package, here is the link
