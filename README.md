@@ -14,6 +14,30 @@ configure many other parameters in the config file. See the sample config file
   -	To get this info, use the "-mem" flag while running the module
   - Also, if the instance is running on a remote machine, then you need to use
   	the "-remote" flag as well.
+  - The memory information if obtained using the following "pmap" command. Basically
+  	the RSS part of the total memory usage, is used.
+  ```
+  	$ pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'
+  ```
+  ### Sample Output of - pmap -x $pid_of_etcd
+	```	  
+	  3084:   etcd -addr 10.70.1.148:4001
+	Address           Kbytes     RSS   Dirty Mode  Mapping
+	0000000000400000    3020    2764       0 r-x-- etcd
+	00000000006f3000    3316    2996       0 r---- etcd
+	0000000000a30000     120     116      28 rw--- etcd
+	0000000000a4e000     116      96      96 rw---   [ anon ]
+	000000c000000000      36      36      36 rw---   [ anon ]
+	000000c207de8000   36448   15188   15188 rw---   [ anon ]
+	00007fcc92ad1000    1728     660     660 rw---   [ anon ]
+	00007ffc139c0000     132      12      12 rw---   [ stack ]
+	00007ffc139ed000       8       0       0 r----   [ anon ]
+	00007ffc139ef000       8       4       0 r-x--   [ anon ]
+	ffffffffff600000       4       0       0 r-x--   [ anon ]
+	---------------- ------- ------- ------- 
+	total kB           44936   21872   16020
+	```
+	
  - Key value distribution
   - This feature basically allows you to specify the distribution of the 
   	key-values, that is how many keys lie in a particular value range, specified
@@ -44,7 +68,7 @@ configure many other parameters in the config file. See the sample config file
  - Set up a default config file, like the one available in the repo.
   - Below is a sample config file, for more details take a look at etcd_load.cfg
    
-## Sample Config File
+### Sample Config File
 ```
 		[section-args]
 		etcdhost="127.0.0.1"
