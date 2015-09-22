@@ -81,7 +81,8 @@ configure many other parameters in the config file. See the sample config file
 #Result 
  - You can find more runtime details in the log file. 
  - The commandline the report looks like :
-	*******************************************************************
+
+*******************************************************************
 	Summary:
 	  Total:	2.8454 secs.
 	  Slowest:	0.1493 secs.
