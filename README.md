@@ -19,7 +19,7 @@ configure many other parameters in the config file. See the sample config file
   ```
   	$ pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'
   ```
-  ### Sample Output of - pmap -x $pid_of_etcd
+  ### Sample Output of : pmap -x $pid_of_etcd
 	```	  
 	  3084:   etcd -addr 10.70.1.148:4001
 	Address           Kbytes     RSS   Dirty Mode  Mapping
@@ -37,7 +37,7 @@ configure many other parameters in the config file. See the sample config file
 	---------------- ------- ------- ------- 
 	total kB           44936   21872   16020
 	```
-	
+
  - Key value distribution
   - This feature basically allows you to specify the distribution of the 
   	key-values, that is how many keys lie in a particular value range, specified
