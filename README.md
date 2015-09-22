@@ -69,10 +69,10 @@ configure many other parameters in the config file. See the sample config file
 
 ##Running the Test
 
- - $ ./etcd_load -c config_file -flag
+ - ./etcd_load -c config_file -flag
   - flag : -help , -h , -p , -o , -k , -oc , -log , -mem , -remote
-  - For more information, do :
-   - $ go run etcd_load.go -help
+  - For details regarding the flags , use :
+   - go run etcd_load.go -help
 
  - Examples :
 
