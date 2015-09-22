@@ -72,14 +72,14 @@ configure many other parameters in the config file. See the sample config file
  - $ ./etcd_load -c etcd_load.cfg
 
  - Examples :
- 	# [remote etcd instance]
-        ```
+  	[remote etcd instance]
+   	```
  	$ ./etcd_load -c etcd_load.cfg -mem -remote -o create  
  	$ ./etcd_load -c etcd_load.cfg -h 10.10.10.1 -p 4001 -o create 
-	```
+   	```
 
-        # [local etcd instance]
-        ```
+    [local etcd instance]
+    ```
  	$ ./etcd_load -c etcd_load.cfg -h 127.0.0.1 -o create 
 	```
 
