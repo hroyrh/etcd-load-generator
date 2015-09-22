@@ -37,6 +37,8 @@ Declarations ::::
                   Example -- {100,100,500,300} for keycount=1000 .
     value_range : value range for keys .
     results     : result struct from report.go .
+    threads     : Maximum number of threads allowed to run.
+    threads_dist: Distribution of threads according to load
 */
 
 type actions func(int,int)
@@ -45,7 +47,7 @@ var (
     wg sync.WaitGroup
     operation, pidetcd, pidetcd_s, conf_file string
     keycount, operation_count, threads, etcdmem_s, etcdmem_e int
-    pct, pct_count, value_range []int
+    pct, pct_count, value_range, thread_dist []int
     client *etcd.Client
     start time.Time
     f *os.File
@@ -139,8 +141,10 @@ func main() {
     remote_host := cfg.Section_Args.Etcdhost
     ssh_port := cfg.Section_Args.Ssh_Port
     remote_host_user := cfg.Section_Args.Remote_Host_User
+    threads = cfg.Section_Args.Threads
 
-    //Here, the formatting of pct_count is handled.
+    // Calculate pct_count based on keycount and pct.
+    // Also calculating thread_dist along with it.
     percents := cfg.Section_Args.Pct
     temp := strings.Split(percents,",")
     pct = make([]int,len(temp))
@@ -157,8 +161,7 @@ func main() {
     for i:=0;i<len(temp);i++ {
         value_range[i] = int(toInt(temp[i],10,64))
     }
-    //Maximum threads that can be used for the test.
-    threads = cfg.Section_Args.Threads
+    
 
     
     // Flag Handling
@@ -184,6 +187,18 @@ func main() {
     remote_flag = *fremote_flag
     mem_flag = *fmem_flag
 
+
+    // If remote flag not set, then confirm that it is a local etcd instance.
+    if mem_flag && !remote_flag {
+        ipAd,_ := exec.Command("ip","addr").Output()
+        ipAddr := string(ipAd)
+        if ! strings.Contains(ipAddr,"inet "+etcdhost) {
+            fmt.Println("Please use the remote flag for remote etcd instance")
+            fmt.Println("****************************")
+            mem_flag = false
+        }
+    }
+
     // This part is executed only when memory information is requested, when 
     // etcd is running on a remote machine.
     if remote_flag && mem_flag {
@@ -202,10 +217,15 @@ func main() {
 
         t_client,err := ssh.Dial("tcp", remote_host+":"+ssh_port, config)
         if err != nil {
-            panic("Failed to dial: " + err.Error())
+            fmt.Println("\n","Failed to dial: " + err.Error())
+            fmt.Println("Unable to establish connection to remote machine.")
+            fmt.Println("Make sure that passwork-less connection is possible.")
+            fmt.Println("************************************")
+            mem_flag = false
         }
         ssh_client = t_client
     }
+
 
     // Getting Memory Info for etcd instance. this part is only executed if 
     // memory information is requested, that is, memory_flag is set.
