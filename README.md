@@ -72,8 +72,9 @@ configure many other parameters in the config file. See the sample config file
  - ./etcd_load -c config_file -flag
   - flag : -help , -h , -p , -o , -k , -oc , -log , -mem , -remote
   - For details regarding the flags , use :
-   - go run etcd_load.go -help
-
+  	```
+    $ go run etcd_load.go -help
+	```
  - Examples :
 
   	[remote etcd instance]
