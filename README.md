@@ -4,7 +4,7 @@ This is a etcd load test module written in go-language. It basically creates
 artificial load on a running etcd instance. The test runs for a random set of
 keys and values, which can be specified in the configuration file. You can 
 configure many other parameters in the config file. See the sample config file 
---"etcd_load.cfg" for more information. 
+*etcd_load.cfg* for more information. 
 
 
 ##Features
@@ -43,7 +43,9 @@ configure many other parameters in the config file. See the sample config file
   - go get "code.google.com/p/gcfg"
  - Set up a default config file, like the one available in the repo.
   - Below is a sample config file, for more details take a look at etcd_load.cfg
-   - ## Sample Config File
+   
+## Sample Config File
+```
 		[section-args]
 		etcdhost="127.0.0.1"
 		etcdport="4001"
@@ -57,26 +59,34 @@ configure many other parameters in the config file. See the sample config file
 		remote-flag=False
 		ssh-port=22
 		remote-host-user=root
-
+```
 
 #Build
  - Now, to run etcd_load test, use the following steps
- - go build etcd_load.go report.go
+```
+ $ go build etcd_load.go report.go
+```
 
 #Running the Test
- - ./etcd_load -c "default-config-file" --other-optional-flags
+
+ - $ ./etcd_load -c etcd_load.cfg
+
  - Examples :
- 	- ./etcd_load -c etcd_load.cfg -mem -remote -o create  ----------# [remote etcd instance]
- 	- ./etcd_load -c etcd_load.cfg -h 10.10.10.1 -p 4001 -o create ---------# [remote etcd instance]
- 	- ./etcd_load -c etcd_load.cfg -h 127.0.0.1 -o create -----------# [local etcd instance]
+ 	# [remote etcd instance]
+        ```
+ 	$ ./etcd_load -c etcd_load.cfg -mem -remote -o create  
+ 	$ ./etcd_load -c etcd_load.cfg -h 10.10.10.1 -p 4001 -o create 
+	```
+
+        # [local etcd instance]
+        ```
+ 	$ ./etcd_load -c etcd_load.cfg -h 127.0.0.1 -o create 
+	```
 
 	Note that the "-c" flag is compulsory, that is you need to have a default 
 	config file that must be input using the -c flag
 	To know more about the flags :: do -- go run etcd_load.go -h
 
-#Credit ::
- - The report.go file in the package is used from the "boom" package, here is the link
- 	- https://github.com/rakyll/boom/blob/master/boomer/print.go
 
 #Result 
  - You can find more runtime details in the log file. 
@@ -113,3 +123,7 @@ configure many other parameters in the config file. See the sample config file
 	  99% in 0.1493 secs.
 
 	******************************************************************
+
+#Credit ::
+ - The report.go file in the package is used from the "boom" package, here is the link
+ 	- https://github.com/rakyll/boom/blob/master/boomer/print.go
