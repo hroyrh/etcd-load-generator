@@ -61,18 +61,18 @@ configure many other parameters in the config file. See the sample config file
 		remote-host-user=root
 ```
 
-#Build
+##Build
  - Now, to run etcd_load test, use the following steps
 ```
  $ go build etcd_load.go report.go
 ```
 
-#Running the Test
+##Running the Test
 
  - $ ./etcd_load -c etcd_load.cfg
 
  - Examples :
- 
+
   	[remote etcd instance]
    	```
  	$ ./etcd_load -c etcd_load.cfg -mem -remote -o create  
@@ -89,7 +89,7 @@ configure many other parameters in the config file. See the sample config file
 	To know more about the flags :: do -- go run etcd_load.go -h
 
 
-#Result 
+##Result 
  - You can find more runtime details in the log file. 
  - The commandline the report looks like :
 
@@ -125,6 +125,6 @@ configure many other parameters in the config file. See the sample config file
 
 	******************************************************************
 
-#Credit ::
+##Credit ::
  - The report.go file in the package is used from the "boom" package, here is the link
  	- https://github.com/rakyll/boom/blob/master/boomer/print.go
