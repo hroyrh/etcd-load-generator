@@ -298,9 +298,10 @@ func dialClient(){
     if err != nil {
         fmt.Println("\n","Failed to dial: " + err.Error())
         fmt.Println("Unable to establish connection to remote machine.")
-        fmt.Println("Make sure that passwork-less connection is possible.")
+        fmt.Println("Make sure that password-less connection is possible.")
         fmt.Println("************************************")
         mem_flag = false
+        return
     }
     ssh_client = t_client
 }
