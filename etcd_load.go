@@ -43,9 +43,10 @@ Declarations ::::
 
 type actions func(int,int)
 
+
 var (
     wg sync.WaitGroup
-    operation, pidetcd, pidetcd_s, conf_file string
+    operation, pidetcd, pidetcd_s, conf_file, log_file, etcdhost, etcdport, remote_host, ssh_port,remote_host_user string
     keycount, operation_count, threads, etcdmem_s, etcdmem_e int
     pct, pct_count, value_range, thread_dist []int
     client *etcd.Client
@@ -56,7 +57,7 @@ var (
     config *ssh.ClientConfig
     ssh_client *ssh.Client
     session *ssh.Session
-    mem_flag bool
+    mem_flag, remote_flag bool
     results chan *result
 )
 
@@ -88,10 +89,7 @@ var (
     fcfg_file = flag.String("c","null","Input the cfg file. Required")
  }
 
-func main() {
-    //This parses the commandline flags, so that their values are set.
-    flag.Parse()
-
+func readConfig(){
     //This struct is used to capture the configuration from the config file.
     cfg := struct {
         Section_Args struct {
@@ -109,20 +107,7 @@ func main() {
             Remote_Host_User string
         }
     }{}
-    
-    //The input of config file is handled here.
-    if *fhelp {
-        flag.Usage()
-        return
-    }
-    if *fcfg_file != "null"{
-        conf_file = *fcfg_file
-    } else
-    {
-        flag.Usage()
-        fmt.Println("Please input the cfg file")
-        return
-    }
+
     err = gcfg.ReadFileInto(&cfg, conf_file)
     if err != nil {
         log.Fatalf("Failed to parse gcfg data: ", err)
@@ -131,16 +116,16 @@ func main() {
 
     // Reading parameters from the config file and doing processing if needed.
     /////////////////////////////////////////////////////////////////////////
-    etcdhost := cfg.Section_Args.Etcdhost
-    etcdport := cfg.Section_Args.Etcdport
+    etcdhost = cfg.Section_Args.Etcdhost
+    etcdport = cfg.Section_Args.Etcdport
     operation = cfg.Section_Args.Operation
     keycount = int(toInt(cfg.Section_Args.Keycount,10,64))
     operation_count = int(toInt(cfg.Section_Args.Operation_Count,10,64))
-    log_file := cfg.Section_Args.Log_File
-    remote_flag := cfg.Section_Args.Remote_Flag
-    remote_host := cfg.Section_Args.Etcdhost
-    ssh_port := cfg.Section_Args.Ssh_Port
-    remote_host_user := cfg.Section_Args.Remote_Host_User
+    log_file = cfg.Section_Args.Log_File
+    remote_flag = cfg.Section_Args.Remote_Flag
+    remote_host = cfg.Section_Args.Etcdhost
+    ssh_port = cfg.Section_Args.Ssh_Port
+    remote_host_user = cfg.Section_Args.Remote_Host_User
     threads = cfg.Section_Args.Threads
 
     // Calculate pct_count based on keycount and pct.
@@ -162,8 +147,10 @@ func main() {
         value_range[i] = int(toInt(temp[i],10,64))
     }
     
+}
 
-    
+
+func handleFlags(){
     // Flag Handling
     if *fhost != "null"{
         etcdhost=*fhost
@@ -198,7 +185,34 @@ func main() {
             mem_flag = false
         }
     }
+}
 
+func dialClient(){
+    t_key, _ := getKeyFile()
+    if  err !=nil {
+        panic(err)
+    }
+    key = t_key
+
+    config := &ssh.ClientConfig{
+        User: remote_host_user,
+        Auth: []ssh.AuthMethod{
+        ssh.PublicKeys(key),
+        },
+    }
+
+    t_client,err := ssh.Dial("tcp", remote_host+":"+ssh_port, config)
+    if err != nil {
+        fmt.Println("\n","Failed to dial: " + err.Error())
+        fmt.Println("Unable to establish connection to remote machine.")
+        fmt.Println("Make sure that passwork-less connection is possible.")
+        fmt.Println("************************************")
+        mem_flag = false
+    }
+    ssh_client = t_client
+}
+
+func memHandler(){
     // This part is executed only when memory information is requested, when 
     // etcd is running on a remote machine.
     if remote_flag && mem_flag {
@@ -259,6 +273,56 @@ func main() {
     if mem_flag {
         fmt.Println("Memory usage by etcd before requests: " + pidetcd_s +" KB")
     }
+}
+
+func main() {
+    //This parses the commandline flags, so that their values are set.
+    flag.Parse()
+
+    
+    
+    //The input of config file is handled here.
+    if *fhelp {
+        flag.Usage()
+        return
+    }
+    if *fcfg_file != "null"{
+        conf_file = *fcfg_file
+    } else
+    {
+        flag.Usage()
+        fmt.Println("Please input the cfg file")
+        return
+    }
+    
+
+    //////////////////////////
+    ////////////////////////
+    //////////////////
+    /////////
+    ///////
+    /////
+    readConfig()
+
+    ///////////////
+    /////////////////
+    //////////////////
+    ///////////////////
+    
+
+    ///////////////////////////
+    ///////////////////////
+    //////////////////
+    /////////////
+    /////////
+    ///////
+    handleFlags()
+
+    //////////////
+    //////////////////
+    memHandler()
+    ///////////////////////
+    ///////////////////////////
 
     // Creating a new client for handling requests .
     var machines = []string{"http://"+etcdhost+":"+etcdport}
@@ -508,7 +572,6 @@ func timeTrack(start time.Time, name string) {
 // This function is used to get the pulic ssh key to make password-less 
 // connection to a remote machine.
 func getKeyFile() (key ssh.Signer, err error){
-    //fmt.Println("getkey file funciton")
     file := os.Getenv("HOME") + "/.ssh/id_rsa"
     buf, err := ioutil.ReadFile(file)
     if err != nil {
