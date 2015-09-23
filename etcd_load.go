@@ -212,63 +212,50 @@ func dialClient(){
     ssh_client = t_client
 }
 
+
+func memRemote() int {
+    var bits bytes.Buffer
+    mem_cmd := "pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'"
+    session, err := ssh_client.NewSession()
+    if err != nil {
+        panic("Failed to create session: " + err.Error())
+    }
+    defer session.Close()
+    session.Stdout = &bits
+    if err := session.Run(mem_cmd); err != nil {
+        panic("Failed to run: " + err.Error())
+    }
+
+    pidetcd_s = bits.String()
+    pidetcd_s = strings.TrimSpace(pidetcd_s)
+    etcdmem_i, _ := strconv.Atoi(pidetcd_s)
+    return etcdmem_i
+}
+
+func memLocal() int {
+    pidtemp, _ := exec.Command("pidof","etcd").Output()
+    pidetcd = string(pidtemp)
+    pidetcd = strings.TrimSpace(pidetcd)
+    pidetcd_s = getMemUse(pidetcd)
+    etcdmem_i, _  := strconv.Atoi(pidetcd_s)
+    return etcdmem_i
+}
+
 func memHandler(){
     // This part is executed only when memory information is requested, when 
     // etcd is running on a remote machine.
     if remote_flag && mem_flag {
-        t_key, _ := getKeyFile()
-        if  err !=nil {
-            panic(err)
-        }
-        key = t_key
-
-        config := &ssh.ClientConfig{
-            User: remote_host_user,
-            Auth: []ssh.AuthMethod{
-            ssh.PublicKeys(key),
-            },
-        }
-
-        t_client,err := ssh.Dial("tcp", remote_host+":"+ssh_port, config)
-        if err != nil {
-            fmt.Println("\n","Failed to dial: " + err.Error())
-            fmt.Println("Unable to establish connection to remote machine.")
-            fmt.Println("Make sure that passwork-less connection is possible.")
-            fmt.Println("************************************")
-            mem_flag = false
-        }
-        ssh_client = t_client
+        dialClient()
     }
-
 
     // Getting Memory Info for etcd instance. this part is only executed if 
     // memory information is requested, that is, memory_flag is set.
     // Note that if memory_flag is set, and the machine is remote, then the 
     // remote_flag must be set .
     if remote_flag && mem_flag {
-        var bits bytes.Buffer
-        mem_cmd := "pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'"
-        session, err := ssh_client.NewSession()
-        if err != nil {
-            panic("Failed to create session: " + err.Error())
-        }
-        defer session.Close()
-        session.Stdout = &bits
-        if err := session.Run(mem_cmd); err != nil {
-            panic("Failed to run: " + err.Error())
-        }
-
-        pidetcd_s = bits.String()
-        pidetcd_s = strings.TrimSpace(pidetcd_s)
-        etcdmem_i, _ := strconv.Atoi(pidetcd_s)
-        etcdmem_s = etcdmem_i
+        etcdmem_s = memRemote()
     } else if mem_flag {
-        pidtemp, _ := exec.Command("pidof","etcd").Output()
-        pidetcd = string(pidtemp)
-        pidetcd = strings.TrimSpace(pidetcd)
-        pidetcd_s = getMemUse(pidetcd)
-        etcdmem_i, _  := strconv.Atoi(pidetcd_s)
-        etcdmem_s = etcdmem_i
+        etcdmem_s = memLocal()
     }
     if mem_flag {
         fmt.Println("Memory usage by etcd before requests: " + pidetcd_s +" KB")
