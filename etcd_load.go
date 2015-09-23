@@ -117,7 +117,7 @@ func main() {
     handleFlags()
     
     // Fetch the memory information before load test
-    if mem_flag{
+    if mem_flag {
         memHandler(false)
     }
 
@@ -359,7 +359,9 @@ func memHandler(mprint bool){
     // etcd is running on a remote machine.
     if remote_flag {
         dialClient()
-        etcdmem_s = memRemote()
+        if mem_flag{
+            etcdmem_s = memRemote()
+        }
     } else 
     {
         etcdmem_s = memLocal()
