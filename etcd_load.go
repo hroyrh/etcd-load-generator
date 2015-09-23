@@ -46,8 +46,8 @@ type actions func(int,int)
 
 var (
     wg sync.WaitGroup
-    operation, pidetcd, pidetcd_s, conf_file, log_file, etcdhost, etcdport, remote_host, ssh_port,remote_host_user string
-    keycount, operation_count, threads, etcdmem_s, etcdmem_e int
+    operation, conf_file string
+    etcdmem_s, etcdmem_e int
     pct, pct_count, value_range, thread_dist []int
     client *etcd.Client
     start time.Time
@@ -61,7 +61,13 @@ var (
     results chan *result
 )
 
-//Flag variables are descirbed here .
+// Config variables
+var (
+    log_file, etcdhost, etcdport, remote_host, ssh_port,remote_host_user string
+    keycount, operation_count, threads int
+)
+
+// Flag variables are descirbed here .
 var (
     fhost, fport, foperation, flog_file, fcfg_file *string
     fkeycount, foperation_count *int
@@ -69,7 +75,7 @@ var (
 )
 
  func init() {
-    //All the defaults here refer to etcd_load.cfg values, not to flag defaults.
+    // All the defaults here refer to etcd_load.cfg values, not to flag defaults.
     fhelp = flag.Bool("help", false, "shows how to use flags")    
     fhost = flag.String("h", "null", "etcd instance address."+
                         "Default=127.0.0.1 from config file")
@@ -174,7 +180,6 @@ func handleFlags(){
     remote_flag = *fremote_flag
     mem_flag = *fmem_flag
 
-
     // If remote flag not set, then confirm that it is a local etcd instance.
     if mem_flag && !remote_flag {
         ipAd,_ := exec.Command("ip","addr").Output()
@@ -212,7 +217,7 @@ func dialClient(){
     ssh_client = t_client
 }
 
-
+// Fetch memory information for remote etcd instance
 func memRemote() int {
     var bits bytes.Buffer
     mem_cmd := "pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'"
@@ -226,49 +231,64 @@ func memRemote() int {
         panic("Failed to run: " + err.Error())
     }
 
-    pidetcd_s = bits.String()
+    pidetcd_s := bits.String()
     pidetcd_s = strings.TrimSpace(pidetcd_s)
     etcdmem_i, _ := strconv.Atoi(pidetcd_s)
     return etcdmem_i
 }
 
+// Fetch memory information for local etcd instance
 func memLocal() int {
     pidtemp, _ := exec.Command("pidof","etcd").Output()
-    pidetcd = string(pidtemp)
+    pidetcd := string(pidtemp)
     pidetcd = strings.TrimSpace(pidetcd)
-    pidetcd_s = getMemUse(pidetcd)
+    pidetcd_s := getMemUse(pidetcd)
     etcdmem_i, _  := strconv.Atoi(pidetcd_s)
     return etcdmem_i
 }
 
-func memHandler(){
+// Handle fetching and printing of memory information
+func memHandler(mprint bool){
+
+    // Memory information after handling requests
+    if mprint {
+        if remote_flag {
+            etcdmem_e = memRemote()
+        } else 
+        {
+            etcdmem_e = memLocal()
+        }
+        fmt.Println("\n\nMemory information : \n"+
+            "  Memory usage by etcd before requests:",etcdmem_s," KB\n"+
+            "  Memory usage by etcd after requests:",etcdmem_e, " KB\n"+
+            "  Difference := ", etcdmem_e - etcdmem_s," KB")
+        log.Println("Memory usage : before,after load test, difference "+
+                ":=", etcdmem_s, etcdmem_e, etcdmem_e - etcdmem_s)
+        return
+    }
+
     // This part is executed only when memory information is requested, when 
     // etcd is running on a remote machine.
-    if remote_flag && mem_flag {
+    if remote_flag {
         dialClient()
+        etcdmem_s = memRemote()
+    } else 
+    {
+        etcdmem_s = memLocal()
     }
 
     // Getting Memory Info for etcd instance. this part is only executed if 
     // memory information is requested, that is, memory_flag is set.
     // Note that if memory_flag is set, and the machine is remote, then the 
     // remote_flag must be set .
-    if remote_flag && mem_flag {
-        etcdmem_s = memRemote()
-    } else if mem_flag {
-        etcdmem_s = memLocal()
-    }
-    if mem_flag {
-        fmt.Println("Memory usage by etcd before requests: " + pidetcd_s +" KB")
-    }
+
 }
 
 func main() {
-    //This parses the commandline flags, so that their values are set.
+    // This parses the commandline flags, so that their values are set.
     flag.Parse()
 
-    
-    
-    //The input of config file is handled here.
+    // The input of config file is handled here.
     if *fhelp {
         flag.Usage()
         return
@@ -282,34 +302,16 @@ func main() {
         return
     }
     
-
-    //////////////////////////
-    ////////////////////////
-    //////////////////
-    /////////
-    ///////
-    /////
+    // Read and process the config file
     readConfig()
 
-    ///////////////
-    /////////////////
-    //////////////////
-    ///////////////////
-    
-
-    ///////////////////////////
-    ///////////////////////
-    //////////////////
-    /////////////
-    /////////
-    ///////
+    // Handle the flags
     handleFlags()
-
-    //////////////
-    //////////////////
-    memHandler()
-    ///////////////////////
-    ///////////////////////////
+    
+    // Fetch the memory information before load test
+    if mem_flag{
+        memHandler(false)
+    }
 
     // Creating a new client for handling requests .
     var machines = []string{"http://"+etcdhost+":"+etcdport}
@@ -335,12 +337,12 @@ func main() {
     wg.Add(len(pct))
     
     // This part is where requests are handled.
+    start := time.Now()
     switch{
     case operation == "create":
         log.Println("Operation : create")
         var values [2]int
         base := 0
-        start := time.Now()
         for i:=0;i<len(pct);i++{
             values[0] = value_range[i]
             values[1] = value_range[i+1]
@@ -350,53 +352,27 @@ func main() {
         wg.Wait()
         printReport(n, results, time.Now().Sub(start))
     case operation == "get":
-        start := time.Now()
         log.Println("Operation : get")
         handler(get_values)
         wg.Wait()
         printReport(n, results, time.Now().Sub(start))
     case operation == "update":
-        start := time.Now()
         log.Println("Operation : update")
         handler(update_values)
         wg.Wait()
         printReport(n, results, time.Now().Sub(start))
     case operation == "delete":
-        start := time.Now()
         log.Println("Operation : delete")
         handler(delete_values)
         wg.Wait()
         printReport(n, results, time.Now().Sub(start))
     }
 
-    // This part is used when memory information is requested.
-    if remote_flag && mem_flag {
-        var bits bytes.Buffer
-        mem_cmd := "pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'"
-        session, err := ssh_client.NewSession()
-        if err != nil {
-            panic("Failed to create session: " + err.Error())
-        }
-        defer session.Close()
-        session.Stdout = &bits
-        if err := session.Run(mem_cmd); err != nil {
-            panic("Failed to run: " + err.Error())
-        }
-        pidetcd_s = bits.String()
-        pidetcd_s = strings.TrimSpace(pidetcd_s)
-        etcdmem_i,_ := strconv.Atoi(pidetcd_s)
-        etcdmem_e = etcdmem_i
-    } else if mem_flag{
-        pidetcd_s = getMemUse(pidetcd)
-        etcdmem_i, _ := strconv.Atoi(pidetcd_s)
-        etcdmem_e = etcdmem_i
+    // Fetch and print memory information after load test
+    if mem_flag{
+        memHandler(true)
     }
-    if mem_flag {
-        fmt.Println("Memory usage by etcd before requests: "+ pidetcd_s + " KB")
-        fmt.Println("Difference := "+ strconv.Itoa(etcdmem_e - etcdmem_s)+" KB")
-        log.Println("Difference in memory use, after and before load testing "+
-                    ":=" + strconv.Itoa(etcdmem_e - etcdmem_s))
-    }
+    
     defer f.Close()
 }
 
