@@ -75,7 +75,7 @@ var (
 )
 
  func init() {
-    // All the defaults here refer to etcd_load.cfg values, not to flag defaults.
+    // All the defaults mentioned here refer to etcd_load.cfg values.
     fhelp = flag.Bool("help", false, "shows how to use flags")    
     fhost = flag.String("h", "null", "etcd instance address."+
                         "Default=127.0.0.1 from config file")
@@ -95,200 +95,10 @@ var (
     fcfg_file = flag.String("c","null","Input the cfg file. Required")
  }
 
-func readConfig(){
-    //This struct is used to capture the configuration from the config file.
-    cfg := struct {
-        Section_Args struct {
-            Etcdhost string
-            Etcdport string
-            Operation string
-            Keycount string
-            Operation_Count string
-            Log_File string
-            Threads int
-            Pct string
-            Value_Range string
-            Remote_Flag bool
-            Ssh_Port string
-            Remote_Host_User string
-        }
-    }{}
-
-    err = gcfg.ReadFileInto(&cfg, conf_file)
-    if err != nil {
-        log.Fatalf("Failed to parse gcfg data: ", err)
-    }
-
-
-    // Reading parameters from the config file and doing processing if needed.
-    /////////////////////////////////////////////////////////////////////////
-    etcdhost = cfg.Section_Args.Etcdhost
-    etcdport = cfg.Section_Args.Etcdport
-    operation = cfg.Section_Args.Operation
-    keycount = int(toInt(cfg.Section_Args.Keycount,10,64))
-    operation_count = int(toInt(cfg.Section_Args.Operation_Count,10,64))
-    log_file = cfg.Section_Args.Log_File
-    remote_flag = cfg.Section_Args.Remote_Flag
-    remote_host = cfg.Section_Args.Etcdhost
-    ssh_port = cfg.Section_Args.Ssh_Port
-    remote_host_user = cfg.Section_Args.Remote_Host_User
-    threads = cfg.Section_Args.Threads
-
-    // Calculate pct_count based on keycount and pct.
-    // Also calculating thread_dist along with it.
-    percents := cfg.Section_Args.Pct
-    temp := strings.Split(percents,",")
-    pct = make([]int,len(temp))
-    pct_count = make([]int,len(temp))
-    for i:=0;i<len(temp);i++ {
-        pct[i] = int(toInt(temp[i],10,64))
-        pct_count[i] = pct[i] * keycount / 100
-    }
-
-    //Proper formatting of the value range, read from config file
-    value_r := cfg.Section_Args.Value_Range
-    temp = strings.Split(value_r,",")
-    value_range = make([]int,len(temp))
-    for i:=0;i<len(temp);i++ {
-        value_range[i] = int(toInt(temp[i],10,64))
-    }
-    
-}
-
-
-func handleFlags(){
-    // Flag Handling
-    if *fhost != "null"{
-        etcdhost=*fhost
-        remote_host=etcdhost
-    }
-    if *fport != "null"{
-        etcdport=*fport
-    }
-    if *foperation != "null" {
-        operation=*foperation
-    }
-    if *fkeycount != -1 {
-        keycount = *fkeycount
-    }
-    if *foperation_count != -1 {
-        operation_count = *foperation_count
-    }
-    if *flog_file != "null" {
-        log_file = *flog_file
-    }
-    remote_flag = *fremote_flag
-    mem_flag = *fmem_flag
-
-    // If remote flag not set, then confirm that it is a local etcd instance.
-    if mem_flag && !remote_flag {
-        ipAd,_ := exec.Command("ip","addr").Output()
-        ipAddr := string(ipAd)
-        if ! strings.Contains(ipAddr,"inet "+etcdhost) {
-            fmt.Println("Please use the remote flag for remote etcd instance")
-            fmt.Println("****************************")
-            mem_flag = false
-        }
-    }
-}
-
-func dialClient(){
-    t_key, _ := getKeyFile()
-    if  err !=nil {
-        panic(err)
-    }
-    key = t_key
-
-    config := &ssh.ClientConfig{
-        User: remote_host_user,
-        Auth: []ssh.AuthMethod{
-        ssh.PublicKeys(key),
-        },
-    }
-
-    t_client,err := ssh.Dial("tcp", remote_host+":"+ssh_port, config)
-    if err != nil {
-        fmt.Println("\n","Failed to dial: " + err.Error())
-        fmt.Println("Unable to establish connection to remote machine.")
-        fmt.Println("Make sure that passwork-less connection is possible.")
-        fmt.Println("************************************")
-        mem_flag = false
-    }
-    ssh_client = t_client
-}
-
-// Fetch memory information for remote etcd instance
-func memRemote() int {
-    var bits bytes.Buffer
-    mem_cmd := "pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'"
-    session, err := ssh_client.NewSession()
-    if err != nil {
-        panic("Failed to create session: " + err.Error())
-    }
-    defer session.Close()
-    session.Stdout = &bits
-    if err := session.Run(mem_cmd); err != nil {
-        panic("Failed to run: " + err.Error())
-    }
-
-    pidetcd_s := bits.String()
-    pidetcd_s = strings.TrimSpace(pidetcd_s)
-    etcdmem_i, _ := strconv.Atoi(pidetcd_s)
-    return etcdmem_i
-}
-
-// Fetch memory information for local etcd instance
-func memLocal() int {
-    pidtemp, _ := exec.Command("pidof","etcd").Output()
-    pidetcd := string(pidtemp)
-    pidetcd = strings.TrimSpace(pidetcd)
-    pidetcd_s := getMemUse(pidetcd)
-    etcdmem_i, _  := strconv.Atoi(pidetcd_s)
-    return etcdmem_i
-}
-
-// Handle fetching and printing of memory information
-func memHandler(mprint bool){
-
-    // Memory information after handling requests
-    if mprint {
-        if remote_flag {
-            etcdmem_e = memRemote()
-        } else 
-        {
-            etcdmem_e = memLocal()
-        }
-        fmt.Println("\n\nMemory information : \n"+
-            "  Memory usage by etcd before requests:",etcdmem_s," KB\n"+
-            "  Memory usage by etcd after requests:",etcdmem_e, " KB\n"+
-            "  Difference := ", etcdmem_e - etcdmem_s," KB")
-        log.Println("Memory usage : before,after load test, difference "+
-                ":=", etcdmem_s, etcdmem_e, etcdmem_e - etcdmem_s)
-        return
-    }
-
-    // This part is executed only when memory information is requested, when 
-    // etcd is running on a remote machine.
-    if remote_flag {
-        dialClient()
-        etcdmem_s = memRemote()
-    } else 
-    {
-        etcdmem_s = memLocal()
-    }
-
-    // Getting Memory Info for etcd instance. this part is only executed if 
-    // memory information is requested, that is, memory_flag is set.
-    // Note that if memory_flag is set, and the machine is remote, then the 
-    // remote_flag must be set .
-
-}
 
 func main() {
-    // This parses the commandline flags, so that their values are set.
     flag.Parse()
 
-    // The input of config file is handled here.
     if *fhelp {
         flag.Usage()
         return
@@ -302,10 +112,8 @@ func main() {
         return
     }
     
-    // Read and process the config file
     readConfig()
 
-    // Handle the flags
     handleFlags()
     
     // Fetch the memory information before load test
@@ -374,6 +182,187 @@ func main() {
     }
     
     defer f.Close()
+}
+
+
+func readConfig(){
+    //This struct is used to capture the configuration from the config file.
+    cfg := struct {
+        Section_Args struct {
+            Etcdhost string
+            Etcdport string
+            Operation string
+            Keycount string
+            Operation_Count string
+            Log_File string
+            Threads int
+            Pct string
+            Value_Range string
+            Remote_Flag bool
+            Ssh_Port string
+            Remote_Host_User string
+        }
+    }{}
+
+    err = gcfg.ReadFileInto(&cfg, conf_file)
+    if err != nil {
+        log.Fatalf("Failed to parse gcfg data: ", err)
+    }
+
+
+    // Reading parameters from the config file and doing processing if needed.
+    etcdhost = cfg.Section_Args.Etcdhost
+    etcdport = cfg.Section_Args.Etcdport
+    operation = cfg.Section_Args.Operation
+    keycount = int(toInt(cfg.Section_Args.Keycount,10,64))
+    operation_count = int(toInt(cfg.Section_Args.Operation_Count,10,64))
+    log_file = cfg.Section_Args.Log_File
+    remote_flag = cfg.Section_Args.Remote_Flag
+    remote_host = cfg.Section_Args.Etcdhost
+    ssh_port = cfg.Section_Args.Ssh_Port
+    remote_host_user = cfg.Section_Args.Remote_Host_User
+    threads = cfg.Section_Args.Threads
+
+    // Calculate pct_count based on keycount and pct.
+    percents := cfg.Section_Args.Pct
+    temp := strings.Split(percents,",")
+    pct = make([]int,len(temp))
+    pct_count = make([]int,len(temp))
+    for i:=0;i<len(temp);i++ {
+        pct[i] = int(toInt(temp[i],10,64))
+        pct_count[i] = pct[i] * keycount / 100
+    }
+
+    //Proper formatting of the value range, read from config file
+    value_r := cfg.Section_Args.Value_Range
+    temp = strings.Split(value_r,",")
+    value_range = make([]int,len(temp))
+    for i:=0;i<len(temp);i++ {
+        value_range[i] = int(toInt(temp[i],10,64))
+    }
+    
+}
+
+// Flag Handling
+func handleFlags(){
+    if *fhost != "null"{
+        etcdhost=*fhost
+        remote_host=etcdhost
+    }
+    if *fport != "null"{
+        etcdport=*fport
+    }
+    if *foperation != "null" {
+        operation=*foperation
+    }
+    if *fkeycount != -1 {
+        keycount = *fkeycount
+    }
+    if *foperation_count != -1 {
+        operation_count = *foperation_count
+    }
+    if *flog_file != "null" {
+        log_file = *flog_file
+    }
+    remote_flag = *fremote_flag
+    mem_flag = *fmem_flag
+
+    // If remote flag not set, then confirm that it is a local etcd instance.
+    if mem_flag && !remote_flag {
+        ipAd,_ := exec.Command("ip","addr").Output()
+        ipAddr := string(ipAd)
+        if ! strings.Contains(ipAddr,"inet "+etcdhost) {
+            fmt.Println("Please use the remote flag for remote etcd instance")
+            fmt.Println("****************************")
+            mem_flag = false
+        }
+    }
+}
+
+// Dials to setup tcp connection to remote host, used for memory information
+func dialClient(){
+    t_key, _ := getKeyFile()
+    if  err !=nil {
+        panic(err)
+    }
+    key = t_key
+
+    config := &ssh.ClientConfig{
+        User: remote_host_user,
+        Auth: []ssh.AuthMethod{
+        ssh.PublicKeys(key),
+        },
+    }
+
+    t_client,err := ssh.Dial("tcp", remote_host+":"+ssh_port, config)
+    if err != nil {
+        fmt.Println("\n","Failed to dial: " + err.Error())
+        fmt.Println("Unable to establish connection to remote machine.")
+        fmt.Println("Make sure that passwork-less connection is possible.")
+        fmt.Println("************************************")
+        mem_flag = false
+    }
+    ssh_client = t_client
+}
+
+// Fetch memory information for remote etcd instance
+func memRemote() int {
+    var bits bytes.Buffer
+    mem_cmd := "pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'"
+    session, err := ssh_client.NewSession()
+    if err != nil {
+        panic("Failed to create session: " + err.Error())
+    }
+    defer session.Close()
+    session.Stdout = &bits
+    if err := session.Run(mem_cmd); err != nil {
+        panic("Failed to run: " + err.Error())
+    }
+
+    pidetcd_s := bits.String()
+    pidetcd_s = strings.TrimSpace(pidetcd_s)
+    etcdmem_i, _ := strconv.Atoi(pidetcd_s)
+    return etcdmem_i
+}
+
+// Fetch memory information for local etcd instance
+func memLocal() int {
+    pidtemp, _ := exec.Command("pidof","etcd").Output()
+    pidetcd := string(pidtemp)
+    pidetcd = strings.TrimSpace(pidetcd)
+    pidetcd_s := getMemUse(pidetcd)
+    etcdmem_i, _  := strconv.Atoi(pidetcd_s)
+    return etcdmem_i
+}
+
+// Handle fetching and printing of memory information
+func memHandler(mprint bool){
+    // Memory information after handling requests
+    if mprint {
+        if remote_flag {
+            etcdmem_e = memRemote()
+        } else 
+        {
+            etcdmem_e = memLocal()
+        }
+        fmt.Println("\n\nMemory information : \n"+
+            "  Memory usage by etcd before requests:",etcdmem_s," KB\n"+
+            "  Memory usage by etcd after requests:",etcdmem_e, " KB\n"+
+            "  Difference := ", etcdmem_e - etcdmem_s," KB")
+        log.Println("Memory usage : before,after load test, difference "+
+                ":=", etcdmem_s, etcdmem_e, etcdmem_e - etcdmem_s)
+        return
+    }
+
+    // This part is executed only when memory information is requested, when 
+    // etcd is running on a remote machine.
+    if remote_flag {
+        dialClient()
+        etcdmem_s = memRemote()
+    } else 
+    {
+        etcdmem_s = memLocal()
+    }
 }
 
 // As the name suggests, returns a single int64 value.
