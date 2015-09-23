@@ -1,5 +1,7 @@
 # ETCD Load Testing
 
+Note : This test, right now, supports only a single node etcd cluster.
+
 This is a etcd load test module written in go-language. It basically creates 
 artificial load on a running etcd instance. The test runs for a random set of
 keys and values, which can be specified in the configuration file. You can 
