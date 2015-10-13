@@ -131,7 +131,7 @@ func main() {
         ca := fmt.Sprintf(cpath + "/" + ca_cert)
         cert := fmt.Sprintf(cpath + "/" + client_cert)
         key := fmt.Sprintf(cpath + "/" + client_key)
-        var machines = []string{"https://ose3-master.example.com:4001"}
+        var machines = []string{"https://"+etcdhost+":"+etcdport}
         client,_ = etcd.NewTLSClient(machines, cert, key, ca)
 
     } else{
