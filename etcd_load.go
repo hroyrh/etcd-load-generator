@@ -64,6 +64,7 @@ var (
 // Config variables
 var (
     log_file, etcdhost, etcdport, remote_host, ssh_port,remote_host_user string
+    cpath, client_cert, client_key, ca_cert string
     keycount, operation_count, threads int
 )
 
@@ -127,9 +128,9 @@ func main() {
     // If etcd instance in secure, certificates are used to create
     // client
     if *fsecure {
-        ca := fmt.Sprintf("ca.cert")
-        cert := fmt.Sprintf("master.etcd-client.crt")
-        key := fmt.Sprintf("master.etcd-client.key")
+        ca := fmt.Sprintf(cpath + "/" + ca_cert)
+        cert := fmt.Sprintf(cpath + "/" + client_cert)
+        key := fmt.Sprintf(cpath + "/" + client_key)
         var machines = []string{"https://ose3-master.example.com:4001"}
         client,_ = etcd.NewTLSClient(machines, cert, key, ca)
 
@@ -214,6 +215,10 @@ func readConfig(){
             Remote_Flag bool
             Ssh_Port string
             Remote_Host_User string
+            Cpath string
+            Ca string
+            Client_Crt string
+            Client_Key string
         }
     }{}
 
@@ -235,6 +240,11 @@ func readConfig(){
     ssh_port = cfg.Section_Args.Ssh_Port
     remote_host_user = cfg.Section_Args.Remote_Host_User
     threads = cfg.Section_Args.Threads
+    cpath = cfg.Section_Args.Cpath
+    ca_cert = cfg.Section_Args.Ca
+    client_cert = cfg.Section_Args.Client_Crt
+    client_key = cfg.Section_Args.Client_Key
+
 
     // Calculate pct_count based on keycount and pct.
     percents := cfg.Section_Args.Pct
