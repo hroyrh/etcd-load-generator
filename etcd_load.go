@@ -71,7 +71,7 @@ var (
 var (
     fhost, fport, foperation, flog_file, fcfg_file *string
     fkeycount, foperation_count *int
-    fremote_flag, fmem_flag, fhelp *bool
+    fremote_flag, fmem_flag, fhelp, fsecure *bool
 )
 
  func init() {
@@ -92,6 +92,8 @@ var (
                         "instance is remote. Default=false")
     fmem_flag = flag.Bool("mem",false,"When true, memory info is shown."+
                         " Default=false")
+    fsecure = flag.Bool("secure",false,"When true, new tls client created " +
+                        "using certificate,key files. Default = false")
     fcfg_file = flag.String("c","null","Input the cfg file. Required")
  }
 
@@ -122,9 +124,20 @@ func main() {
     }
 
     // Creating a new client for handling requests .
-    var machines = []string{"http://"+etcdhost+":"+etcdport}
-    client =  etcd.NewClient(machines)
+    // If etcd instance in secure, certificates are used to create
+    // client
+    if *fsecure {
+        ca := fmt.Sprintf("ca.cert")
+        cert := fmt.Sprintf("master.etcd-client.crt")
+        key := fmt.Sprintf("master.etcd-client.key")
+        var machines = []string{"https://ose3-master.example.com:4001"}
+        client,_ = etcd.NewTLSClient(machines, cert, key, ca)
 
+    } else{
+        var machines = []string{"http://"+etcdhost+":"+etcdport}
+        client =  etcd.NewClient(machines)
+    }
+        
     // Log file is opened or created for storing log entries.
     f, err = os.OpenFile(log_file, os.O_RDWR | os.O_CREATE , 0666)
     if err != nil {
