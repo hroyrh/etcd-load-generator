@@ -71,6 +71,7 @@ var (
 // Flag variables are descirbed here .
 var (
     fhost, fport, foperation, flog_file, fcfg_file *string
+    fcapath, fcacert, fclient_cert, fclient_key *string
     fkeycount, foperation_count *int
     fremote_flag, fmem_flag, fhelp, fsecure *bool
 )
@@ -96,6 +97,13 @@ var (
     fsecure = flag.Bool("secure",false,"When true, new tls client created " +
                         "using certificate,key files. Default = false")
     fcfg_file = flag.String("c","null","Input the cfg file. Required")
+    fcapath = flag.String("capath", "null", "Certificate Path"+
+                         ". Default = /etc/openshift/master")
+    fcacert = flag.String("ca","ca.crt","The ca filename. Default = ca.crt")
+    fclient_cert = flag.String("cert","null","The client"+
+                        "Certificate. Default = master.etcd-client.crt")
+    fclient_key = flag.String("cakey","null","The client" +
+                        "Key file. Default = master.etcd-client.key")
  }
 
 
@@ -287,6 +295,19 @@ func handleFlags(){
     if *flog_file != "null" {
         log_file = *flog_file
     }
+    if *fcapath != "null" {
+        cpath = *fcapath
+    }
+    if *fcacert != "null" {
+        ca_cert = *fcacert
+    }
+    if *fclient_cert != "null" {
+        client_cert = *fclient_cert
+    }
+    if *fclient_key != "null" {
+        client_key = *fclient_key
+    }
+    
     remote_flag = *fremote_flag
     mem_flag = *fmem_flag
 
