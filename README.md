@@ -116,23 +116,34 @@ configure many other parameters in the config file. See the sample config file
     $ go run etcd_load.go -help
 	```
  - Examples :
-  	[remote etcd instance]
+
+  ##### [remote etcd instance]
+  
    	```
  	$ ./etcd_load -c etcd_load.cfg -mem -remote -o create  
  	$ ./etcd_load -c etcd_load.cfg -h 10.10.10.1 -p 4001 -o create 
    	```
-    	[local etcd instance]
-    	```
+   	
+  ##### [local etcd instance]
+  
+    ```
  	$ ./etcd_load -c etcd_load.cfg -h 127.0.0.1 -o create 
 	```
-
 	
-	Note that the "-c" flag is compulsory, that is you need to have a default 
+  ##### [secure etcd instance]
+  
+	```
+ 	$ ./etcd_load -c etcd_load.cfg -h secure_etcd_host -o create -secure -capath=/path/to/certificates         -ca=ca.crt -cert=client.crt -cakey=client.key
+ 	```
+ 	
+  ##### [Note]
+	```
+	The "-c" flag is compulsory, that is you need to have a default 
 	config file that must be input using the -c flag
 	Also if the instance is secure, then it is necessary to specify "-secure"
 	flag.
 	To know more about the flags :: do -- go run etcd_load.go -h
-
+    ```
 
 ##Result 
  - You can find more runtime details in the log file. 
