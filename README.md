@@ -21,13 +21,13 @@ configure many other parameters in the config file. See the sample config file
   - It also supports secure etcd-instances, for example the secure etcd running
   	under openshift. For running the load test on a secure etcd instance, you 
 	to specify the following parameters/arguments : 
-   - The flag "-secure" : It is a must
-   - Optional parameters : "-capath", "-ca", "-cert", "-cakey"
-    - These are optional because they can be set in the config file as well
-    - capath : Path of the folder where all the certificates are located
-    - ca : The CA file
-    - cert : The client certificate file
-    - cakey : the cliend key file
+  	- The flag "-secure" : It is a must
+   	- Optional parameters : "-capath", "-ca", "-cert", "-cakey"
+   	- These are optional because they can be set in the config file as well
+    	- capath : Path of the folder where all the certificates are located
+    	- ca : The CA file
+    	- cert : The client certificate file
+    	- cakey : the cliend key file
   ```
   	$ pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'
   ```
