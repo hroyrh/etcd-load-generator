@@ -11,13 +11,23 @@ configure many other parameters in the config file. See the sample config file
 
 ##Features
  - Memory information
-  - gives the memory information about the running etcd instance -- before, 
+  - Gives the memory information about the running etcd instance -- before, 
   	after and difference, when requests are made
-  -	To get this info, use the "-mem" flag while running the module
+  - To get this info, use the "-mem" flag while running the module
   - Also, if the instance is running on a remote machine, then you need to use
   	the "-remote" flag as well.
   - The memory information if obtained using the following "pmap" command. Basically
   	the RSS part of the total memory usage, is used.
+  - It also supports secure etcd-instances, for example the secure etcd running
+  	under openshift. For running the load test on a secure etcd instance, you 
+	to specify the following parameters/arguments : 
+   - The flag "-secure" : It is a must
+   - Optional parameters : "-capath", "-ca", "-cert", "-cakey"
+    - These are optional because they can be set in the config file as well
+    - capath : Path of the folder where all the certificates are located
+    - ca : The CA file
+    - cert : The client certificate file
+    - cakey : the cliend key file
   ```
   	$ pmap -x $(pidof etcd) | tail -n1 | awk '{print $4}'
   ```
@@ -85,6 +95,10 @@ configure many other parameters in the config file. See the sample config file
 		remote-flag=False
 		ssh-port=22
 		remote-host-user=root
+		cpath=/root/username/certificates
+		ca="ca.crt"
+		client-crt="etcd-client.crt"
+		client-key="etcd-client.key"
 ```
 
 ##Build
@@ -109,13 +123,20 @@ configure many other parameters in the config file. See the sample config file
  	$ ./etcd_load -c etcd_load.cfg -h 10.10.10.1 -p 4001 -o create 
    	```
 
-    [local etcd instance]
-    ```
+    	[local etcd instance]
+    	```
  	$ ./etcd_load -c etcd_load.cfg -h 127.0.0.1 -o create 
 	```
-
+	
+	[secure etcd instance]
+    	```
+ 	$ ./etcd_load -c etcd_load.cfg -h secure_etcd_host -o create -secure -capath=/path/to/certificates -ca=ca.crt -cert=client.crt -cakey=client.key
+	```
+	
 	Note that the "-c" flag is compulsory, that is you need to have a default 
 	config file that must be input using the -c flag
+	Also if the instance is secure, then it is necessary to specify "-secure"
+	flag.
 	To know more about the flags :: do -- go run etcd_load.go -h
 
 
