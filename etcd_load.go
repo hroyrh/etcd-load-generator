@@ -88,7 +88,7 @@ var (
     fkeycount = flag.Int("k",-1,"number of keys involved in operation,"+
                         "useful for create. Default:100")
     foperation_count = flag.Int("oc",-1,"number of operations to be performed,"+
-                        " Default:200")
+                        " Default:100")
     flog_file = flag.String("log","null", "logfile name, default : log")
     fremote_flag = flag.Bool("remote",false," Must be set true if etcd "+
                         "instance is remote. Default=false")
@@ -177,7 +177,7 @@ func main() {
             values[0] = value_range[i]
             values[1] = value_range[i+1]
             go create_keys(base,pct_count[i],values)
-            base = base + pct_count[i]
+            base = base + pct_count[i]*(keycount/operation_count)
         }
         wg.Wait()
         printReport(n, results, time.Now().Sub(start))
@@ -261,7 +261,6 @@ func readConfig(){
     pct_count = make([]int,len(temp))
     for i:=0;i<len(temp);i++ {
         pct[i] = int(toInt(temp[i],10,64))
-        pct_count[i] = pct[i] * keycount / 100
     }
 
     //Proper formatting of the value range, read from config file
@@ -310,6 +309,11 @@ func handleFlags(){
     
     remote_flag = *fremote_flag
     mem_flag = *fmem_flag
+
+    // operation count array calculation
+    for i:=0;i<len(pct);i++ {
+    	pct_count[i] = pct[i] * operation_count / 100
+    }
 
     // If remote flag not set, then confirm that it is a local etcd instance.
     if mem_flag && !remote_flag {
